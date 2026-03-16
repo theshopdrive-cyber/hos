@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>나의 서비스 현황 | 더샵 안심보관</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:      #185FA5;
+      --blue-bg:   #EBF4FF;
+      --blue-text: #0C447C;
+      --green-bg:  #D1FAE5;
+      --green-text:#065F46;
+      --gray-bg:   #F5F5F4;
+      --gray-text: #6B7280;
+      --border:    #E5E7EB;
+      --text-1:    #111827;
+      --text-2:    #6B7280;
+      --text-3:    #9CA3AF;
+      --bg-page:   #F9FAFB;
+      --bg-card:   #FFFFFF;
+      --radius:    14px;
+    }
+
+    body {
+      font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      background: var(--bg-page);
+      color: var(--text-1);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    #loading {
+      position: fixed; inset: 0; background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px; z-index: 999;
+      transition: opacity 0.3s;
+    }
+    #loading.hide { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 2.5px solid var(--border); border-top-color: var(--blue);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p { font-size: 13px; color: var(--text-2); }
+
+    #error-view {
+      display: none; max-width: 480px; margin: 80px auto;
+      padding: 40px 20px; text-align: center;
+    }
+    #error-view .err-icon { font-size: 36px; margin-bottom: 12px; }
+    #error-view h2 { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+    #error-view p  { font-size: 13px; color: var(--text-2); line-height: 1.7; }
+
+    .top-bar { background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+    .top-bar-inner {
+      max-width: 900px; margin: 0 auto;
+      padding: 14px 20px 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .logo-mark {
+      font-size: 13px; font-weight: 700; color: var(--blue);
+      background: var(--blue-bg); padding: 3px 8px; border-radius: 6px;
+    }
+    .top-title { font-size: 15px; font-weight: 600; }
+
+    .page { max-width: 900px; margin: 0 auto; padding: 0 20px 48px; }
+    .greeting { padding: 24px 0 16px; }
+    .greeting-sub  { font-size: 13px; color: var(--text-2); margin-bottom: 4px; }
+    .greeting-name { font-size: 20px; font-weight: 600; }
+
+    .grid     { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .col-full { grid-column: 1 / -1; }
+    @media (max-width: 620px) {
+      .grid { grid-template-columns: 1fr; }
+      .col-full { grid-column: 1; }
+    }
+
+    .card {
+      background: var(--bg-card); border-radius: var(--radius);
+      padding: 20px; border: 1px solid var(--border);
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .card-title { font-size: 14px; font-weight: 600; }
+
+    .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+    .badge-active { background: var(--green-bg); color: var(--green-text); }
+    .badge-locked { background: var(--gray-bg);  color: var(--gray-text); }
+    .badge-info   { background: var(--blue-bg);  color: var(--blue-text); }
+
+    .info-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+    }
+    .info-row:last-of-type { border-bottom: none; }
+    .info-label { font-size: 13px; color: var(--text-2); }
+    .info-value { font-size: 13px; font-weight: 500; }
+
+    .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+    .input-label { font-size: 12px; color: var(--text-2); margin-bottom: 8px; }
+    .input-label span { color: var(--text-3); }
+    textarea {
+      width: 100%; min-height: 90px;
+      background: var(--gray-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 12px;
+      font-size: 13px; font-family: inherit; color: var(--text-1);
+      resize: vertical; outline: none; line-height: 1.6;
+      transition: border-color 0.15s;
+    }
+    textarea:focus { border-color: var(--blue); }
+    .save-btn {
+      margin-top: 8px; width: 100%;
+      background: var(--blue); color: #fff;
+      border: none; border-radius: 8px; padding: 11px;
+      font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: opacity 0.15s;
+    }
+    .save-btn:hover  { opacity: 0.9; }
+    .save-btn.saving { opacity: 0.6; cursor: default; }
+    .save-btn.saved  { background: var(--gray-bg); color: var(--text-2); cursor: default; }
+    .saved-msg { font-size: 11px; color: var(--text-3); margin-top: 6px; height: 16px; }
+
+    /* 배송 이력 테이블 */
+    .delivery-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    .delivery-table th {
+      font-size: 11px; font-weight: 600; color: var(--text-3);
+      padding: 6px 8px; border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+    .delivery-table td {
+      font-size: 13px; padding: 10px 8px;
+      border-bottom: 1px solid var(--border); vertical-align: middle;
+    }
+    .delivery-table tr:last-child td { border-bottom: none; }
+    .delivery-table .date-cell { color: var(--text-2); white-space: nowrap; }
+    .log-link {
+      font-size: 12px; color: var(--blue); text-decoration: none;
+      padding: 3px 8px; border: 1px solid var(--blue-bg);
+      border-radius: 4px; background: var(--blue-bg); white-space: nowrap;
+    }
+    .log-link:hover { opacity: 0.8; }
+    .log-none { font-size: 12px; color: var(--text-3); }
+
+    .notice-box {
+      background: var(--blue-bg); border-radius: 8px;
+      padding: 11px 13px; display: flex; gap: 8px; align-items: flex-start;
+      margin-top: 12px;
+    }
+    .notice-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .notice-text { font-size: 12px; color: var(--blue-text); line-height: 1.6; }
+
+    .empty-row td {
+      text-align: center; padding: 24px;
+      font-size: 13px; color: var(--text-3);
+    }
+
+    /* 환자용 콘텐츠 */
+    .card.locked { opacity: 0.6; }
+    .locked-body {
+      display: flex; flex-direction: column;
+      align-items: center; text-align: center;
+      padding: 12px 0 8px; gap: 6px;
+    }
+    .locked-icon  { font-size: 28px; margin-bottom: 2px; }
+    .locked-title { font-size: 13px; font-weight: 600; }
+    .locked-desc  { font-size: 12px; color: var(--text-2); line-height: 1.6; }
+    .unlock-bar {
+      background: var(--gray-bg); border-radius: 8px;
+      padding: 10px 12px; margin-top: 12px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .unlock-label { font-size: 12px; color: var(--text-2); }
+    .unlock-date  { font-size: 12px; font-weight: 600; color: var(--blue); }
+    .progress-wrap { margin-top: 10px; }
+    .progress-meta { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .progress-meta span { font-size: 11px; color: var(--text-2); }
+    .progress-track { height: 5px; background: var(--gray-bg); border-radius: 3px; overflow: hidden; }
+    .progress-fill  { height: 100%; background: var(--blue); border-radius: 3px; transition: width 0.6s ease; }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>정보를 불러오는 중이에요</p>
+</div>
+
+<div id="error-view">
+  <div class="err-icon">⚠️</div>
+  <h2>페이지를 불러올 수 없어요</h2>
+  <p id="error-msg">링크가 올바른지 확인해주세요.<br>문제가 계속되면 담당자에게 문의해주세요.</p>
+</div>
+
+<div id="main-view" style="display:none">
+  <div class="top-bar">
+    <div class="top-bar-inner">
+      <span class="logo-mark">더샵</span>
+      <span class="top-title">나의 서비스 현황</span>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="greeting">
+      <div class="greeting-sub">안녕하세요</div>
+      <div class="greeting-name" id="hospital-name">— 원장님 👋</div>
+    </div>
+
+    <div class="grid">
+
+      <!-- 1. 안심보관 서비스 현황 -->
+      <div class="card col-full">
+        <div class="card-header">
+          <span class="card-title">안심보관 서비스</span>
+          <span class="badge badge-active">이용 중</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">서비스 이용 시작일</span>
+          <span class="info-value" id="start-date">—</span>
+        </div>
+        <div class="divider"></div>
+        <div class="input-label">
+          우리 병원 서비스 정보
+          <span>(배송 시 참고 — 저장하면 유지돼요)</span>
+        </div>
+        <textarea id="hospital-memo"
+          placeholder="냉장고 위치, 수령 담당자, 방문 시 주의사항 등을 입력해주세요.&#10;예) 1층 원무과 냉장고 / 도착 시 원무팀장 호출"></textarea>
+        <button class="save-btn" id="save-btn" onclick="saveMemo()">저장하기</button>
+        <div class="saved-msg" id="saved-msg"></div>
+      </div>
+
+      <!-- 2. 냉장배송 온도로그 -->
+      <div class="card col-full">
+        <div class="card-header">
+          <span class="card-title">냉장배송 온도로그</span>
+          <span class="badge badge-info">최근 10건</span>
+        </div>
+        <table class="delivery-table">
+          <thead>
+            <tr>
+              <th>배송일</th>
+              <th>기사명</th>
+              <th>주문 품목</th>
+              <th>온도로그</th>
+            </tr>
+          </thead>
+          <tbody id="delivery-tbody">
+            <tr class="empty-row"><td colspan="4">배송 이력을 불러오는 중이에요</td></tr>
+          </tbody>
+        </table>
+        <div class="notice-box">
+          <span class="notice-icon">ℹ️</span>
+          <span class="notice-text">온도로그는 배송 완료 후 1영업일 이내 확인 가능합니다.</span>
+        </div>
+      </div>
+
+      <!-- 3. 환자용 콘텐츠 -->
+      <div class="card locked" id="content-card">
+        <div class="card-header">
+          <span class="card-title">환자용 콘텐츠</span>
+          <span class="badge badge-locked" id="content-badge">1개월 후 오픈</span>
+        </div>
+        <div class="locked-body" id="content-body">
+          <div class="locked-icon">🔒</div>
+          <div class="locked-title">서비스 이용 1개월 후 제공돼요</div>
+          <div class="locked-desc">안심보관 서비스 이용 1개월 후<br>환자 안내용 냉장보관 콘텐츠를 드려요.</div>
+        </div>
+        <div class="unlock-bar">
+          <span class="unlock-label">오픈까지</span>
+          <span class="unlock-date" id="days-left">—</span>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-meta"><span>이용 시작</span><span>1개월</span></div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const BASE_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+  const token    = new URLSearchParams(location.search).get('t') || '';
+
+  function fmtDate(str) {
+    if (!str) return '—';
+    const d = new Date(str);
+    if (isNaN(d)) return str;
+    return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
+  }
+
+  function showError(msg) {
+    document.getElementById('loading').classList.add('hide');
+    document.getElementById('error-msg').textContent = msg;
+    document.getElementById('error-view').style.display = 'block';
+  }
+
+  async function loadData() {
+    if (!token) { showError('접속 링크가 올바르지 않아요.\n담당자에게 문의해주세요.'); return; }
+    try {
+      const res  = await fetch(`${BASE_URL}?action=getStatus&t=${token}`);
+      const data = await res.json();
+      if (data.error) { showError(data.error); return; }
+      render(data);
+    } catch(e) {
+      showError('서버에 연결할 수 없어요. 잠시 후 다시 시도해주세요.');
+    }
+  }
+
+  function render(d) {
+    document.getElementById('hospital-name').textContent = (d.hospital_name || '—') + ' 원장님 👋';
+    document.getElementById('start-date').textContent    = fmtDate(d.start_date);
+
+    // 메모
+    const localMemo = localStorage.getItem('memo_' + token);
+    const memo = d.memo || localMemo || '';
+    document.getElementById('hospital-memo').value = memo;
+    if (memo) {
+      document.getElementById('save-btn').textContent = '저장됨';
+      document.getElementById('save-btn').classList.add('saved');
+    }
+
+    // 배송 이력
+    renderDeliveries(d.deliveries || []);
+
+    // 환자용 콘텐츠 잠금/해제
+    const start  = new Date(d.start_date);
+    const unlock = new Date(start);
+    unlock.setMonth(unlock.getMonth() + 1);
+    const today   = new Date();
+    const total   = (unlock - start) / 86400000;
+    const elapsed = Math.min((today - start) / 86400000, total);
+    const pct     = Math.round(Math.min((elapsed / total) * 100, 100));
+    const left    = Math.ceil((unlock - today) / 86400000);
+
+    document.getElementById('progress-fill').style.width = pct + '%';
+    if (left > 0) {
+      document.getElementById('days-left').textContent = left + '일 남음';
+    } else {
+      document.getElementById('days-left').textContent    = '이용 가능';
+      document.getElementById('content-badge').textContent = '이용 가능';
+      document.getElementById('content-badge').className   = 'badge badge-active';
+      document.getElementById('content-card').classList.remove('locked');
+      document.getElementById('content-body').innerHTML =
+        '<div class="locked-icon">🎉</div>' +
+        '<div class="locked-title">콘텐츠가 준비됐어요</div>' +
+        '<div class="locked-desc">환자 안내용 냉장보관 자료를 확인하세요.</div>';
+    }
+
+    document.getElementById('loading').classList.add('hide');
+    document.getElementById('main-view').style.display = 'block';
+  }
+
+  function renderDeliveries(list) {
+    const tbody = document.getElementById('delivery-tbody');
+    if (!list.length) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="4">아직 배송 이력이 없어요</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(row => `
+      <tr>
+        <td class="date-cell">${fmtDate(row.delivery_date)}</td>
+        <td>${row.master_name}</td>
+        <td>${row.items}</td>
+        <td>${row.temp_log_url
+          ? `<a class="log-link" href="${row.temp_log_url}" target="_blank">로그 확인</a>`
+          : `<span class="log-none">준비 중</span>`}
+        </td>
+      </tr>`).join('');
+  }
+
+  async function saveMemo() {
+    const btn = document.getElementById('save-btn');
+    if (btn.classList.contains('saving') || btn.classList.contains('saved')) return;
+    const val = document.getElementById('hospital-memo').value;
+
+    btn.textContent = '저장 중…'; btn.classList.add('saving');
+    try {
+      await fetch(BASE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'saveMemo', t: token, memo: val })
+      });
+      localStorage.setItem('memo_' + token, val);
+      btn.textContent = '저장됨'; btn.classList.remove('saving'); btn.classList.add('saved');
+      setMsg('저장됐어요. 다음 방문 시에도 유지돼요.');
+    } catch(e) {
+      localStorage.setItem('memo_' + token, val);
+      btn.textContent = '저장됨'; btn.classList.remove('saving'); btn.classList.add('saved');
+      setMsg('임시 저장됐어요. 네트워크 확인 후 다시 저장해주세요.');
+    }
+  }
+
+  function setMsg(msg) {
+    const el = document.getElementById('saved-msg');
+    el.textContent = msg;
+    setTimeout(() => el.textContent = '', 4000);
+  }
+
+  document.getElementById('hospital-memo').addEventListener('input', () => {
+    const btn = document.getElementById('save-btn');
+    btn.textContent = '저장하기'; btn.className = 'save-btn';
+    document.getElementById('saved-msg').textContent = '';
+  });
+
+  loadData();
+</script>
+</body>
+</html>
